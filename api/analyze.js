@@ -78,7 +78,7 @@ HESAPLAMA YÖNTEMİ (her kombinasyon için ayrı ayrı):
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 32000,
+        max_tokens: 20000,
         system: SYSTEM_PROMPT,
         messages: [{
           role: "user",
