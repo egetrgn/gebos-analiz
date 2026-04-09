@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEBOS-2 Transfer Analiz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px}
+input[type=text],input[type=password]{width:100%;padding:9px 12px;border:1px solid #d3d1c7;border-radius:8px;font-size:14px;background:#fff;color:#1a1a18;outline:none}
+input:focus{border-color:#378add}
+button{padding:9px 20px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18;font-size:14px;cursor:pointer}
+button:hover:not(:disabled){background:#f1efe8}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.p{background:#1a1a18;color:#fff;border-color:#1a1a18;width:100%;padding:11px 0;font-weight:500}
+button.p:hover:not(:disabled){background:#333}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useCallback}=React;
+function b64(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(",")[1]);r.onerror=no;r.readAsDataURL(f);});}
+function Badge({children,c="gray"}){
+  const m={gray:{bg:"#f1efe8",tx:"#444441",br:"#b4b2a9"},blue:{bg:"#e6f1fb",tx:"#0c447c",br:"#85b7eb"},red:{bg:"#fcebeb",tx:"#791f1f",br:"#f09595"},green:{bg:"#eaf3de",tx:"#27500a",br:"#97c459"},amber:{bg:"#faeeda",tx:"#633806",br:"#ef9f27"}};
+  const s=m[c]||m.gray;
+  return <span style={{background:s.bg,color:s.tx,border:`1px solid ${s.br}`,borderRadius:6,fontSize:12,padding:"2px 9px",fontWeight:500,whiteSpace:"nowrap"}}>{children}</span>;
+}
+function Kart({g}){
+  const [op,setOp]=useState(true);
+  const ak=(g.transfer_sonrasi_durum||[]).filter(b=>b.aylik_satis>0);
+  const gn=ak.length?Math.round(Math.max(...ak.map(b=>b.tahmini_tukenme_gun||0))):null;
+  return(
+    <div style={{background:"#fff",border:"1px solid #e8e6df",borderRadius:12,marginBottom:10,overflow:"hidden"}}>
+      <div onClick={()=>setOp(o=>!o)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",cursor:"pointer",background:"#fafaf8",borderBottom:op?"1px solid #e8e6df":"none",flexWrap:"wrap"}}>
+        <span style={{fontSize:13,fontWeight:500,flex:1,minWidth:180}}>{g.ulke} — {g.belge_tipi} — {g.kullanim_tipi}</span>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <Badge c="blue">{g.transferler?.length||0} transfer</Badge>
+          {gn&&<Badge c={gn<60?"red":gn<180?"amber":"green"}>~{gn} gün</Badge>}
+          <span style={{fontSize:11,color:"#888"}}>{op?"▲":"▼"}</span>
+        </div>
+      </div>
+      {op&&<div style={{padding:"12px 16px"}}>
+        {g.transferler?.length>0?(<>
+          <p style={{fontSize:12,color:"#888",marginBottom:8}}>Transfer talimatları</p>
+          <div style={{overflowX:"auto",marginBottom:16}}>
+            <table style={{fontSize:13}}>
+              <thead><tr>{["Gönderen","Alıcı","Adet","Açıklama"].map(h=><th key={h} style={{padding:"5px 10px",fontWeight:500,color:"#888",fontSize:12,borderBottom:"1px solid #e8e6df"}}>{h}</th>)}</tr></thead>
+              <tbody>{g.transferler.map((t,i)=>(
+                <tr key={i} style={{borderBottom:"1px solid #f1efe8"}}>
+                  <td style={{padding:"7px 10px",fontWeight:500}}>{t.gonderen}</td>
+                  <td style={{padding:"7px 10px"}}>{t.alici}</td>
+                  <td style={{padding:"7px 10px",color:"#185fa5",fontWeight:500}}>{(t.adet||0).toLocaleString("tr-TR")}</td>
+                  <td style={{padding:"7px 10px",color:"#888",fontSize:12}}>{t.aciklama}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          {g.transfer_sonrasi_durum?.length>0&&<>
+            <p style={{fontSize:12,color:"#888",marginBottom:8}}>Transfer sonrası stok durumu</p>
+            <div style={{overflowX:"auto"}}>
+              <table style={{fontSize:12}}>
+                <thead><tr>{["Büro","Mevcut Stok","Yeni Stok","Aylık Satış","Tükenme"].map(h=><th key={h} style={{padding:"4px 10px",fontWeight:500,color:"#888",fontSize:11,borderBottom:"1px solid #e8e6df"}}>{h}</th>)}</tr></thead>
+                <tbody>{g.transfer_sonrasi_durum.map((b,i)=>{
+                  const gv=b.tahmini_tukenme_gun;const rk=!gv?"#aaa":gv<60?"#a32d2d":gv<180?"#854f0b":"#3b6d11";
+                  return(<tr key={i} style={{borderBottom:"1px solid #f1efe8"}}>
+                    <td style={{padding:"5px 10px"}}>{b.buro}</td>
+                    <td style={{padding:"5px 10px"}}>{(b.mevcut_stok||0).toLocaleString("tr-TR")}</td>
+                    <td style={{padding:"5px 10px",fontWeight:500}}>{(b.yeni_stok||0).toLocaleString("tr-TR")}</td>
+                    <td style={{padding:"5px 10px"}}>{(b.aylik_satis||0).toLocaleString("tr-TR")}</td>
+                    <td style={{padding:"5px 10px",color:rk,fontWeight:500}}>{gv?`~${Math.round(gv)} gün`:"—"}</td>
+                  </tr>);
+                })}</tbody>
+              </table>
+            </div>
+          </>}
+        </>):<p style={{fontSize:13,color:"#888"}}>Transfer gerekmemektedir.</p>}
+      </div>}
+    </div>
+  );
+}
+function App(){
+  const [key,setKey]=useState(localStorage.getItem("gk")||"");
+  const [show,setShow]=useState(false);
+  const [f1,setF1]=useState(null);
+  const [f4,setF4]=useState(null);
+  const [load,setLoad]=useState(false);
+  const [err,setErr]=useState(null);
+  const [res,setRes]=useState(null);
+  function sk(v){setKey(v);localStorage.setItem("gk",v);}
+  const dr=useCallback((s)=>(e)=>{e.preventDefault();const f=e.dataTransfer?.files?.[0]||e.target?.files?.[0];if(f&&f.type==="application/pdf")s(f);},[]);
+  async function go(){
+    if(!f1||!f4||!key.trim())return;
+    setLoad(true);setErr(null);setRes(null);
+    try{
+      const [d1,d4]=await Promise.all([b64(f1),b64(f4)]);
+      const r=await fetch("/api/analyze",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({apiKey:key.trim(),r105:d1,r409:d4})
+      });
+      const raw=await r.text();
+      if(!raw.trim())throw new Error("Boş yanıt, tekrar deneyin.");
+      let data;try{data=JSON.parse(raw);}catch(e){throw new Error("Yanıt hatası: "+raw.slice(0,150));}
+      if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
+      const txt=(data.content||[]).map(i=>i.text||"").join("\n");
+      const m=txt.match(/\{[\s\S]*\}/);
+      if(!m)throw new Error("JSON bulunamadı. Yanıt: "+txt.slice(0,200));
+      setRes(JSON.parse(m[0]));
+    }catch(e){setErr("Hata: "+e.message);}
+    finally{setLoad(false);}
+  }
+  function reset(){setF1(null);setF4(null);setRes(null);setErr(null);}
+  const Z=({file,setter,label,id})=>(
+    <div onDrop={dr(setter)} onDragOver={e=>e.preventDefault()} onClick={()=>document.getElementById(id).click()}
+      style={{flex:1,border:`2px dashed ${file?"#1d9e75":"#c8c6be"}`,borderRadius:12,padding:"22px 16px",textAlign:"center",background:file?"#e1f5ee":"#fafaf8",cursor:"pointer",minWidth:160}}>
+      <input id={id} type="file" accept=".pdf" style={{display:"none"}} onChange={dr(setter)}/>
+      <div style={{fontSize:28,marginBottom:6,color:file?"#1d9e75":"#aaa"}}>{file?"✓":"+"}</div>
+      <div style={{fontSize:13,fontWeight:500,color:file?"#0f6e56":"#444"}}>{label}</div>
+      <div style={{fontSize:12,color:file?"#0f6e56":"#aaa",marginTop:3}}>{file?file.name:"PDF sürükle veya tıkla"}</div>
+    </div>
+  );
+  return(
+    <div className="wrap">
+      <div style={{marginBottom:28}}>
+        <h1 style={{fontSize:20,fontWeight:600,marginBottom:4}}>GEBOS-2 Transfer Analiz Aracı</h1>
+        <p style={{fontSize:13,color:"#666"}}>R105 ve R409 raporlarını yükle, transfer talimatlarını otomatik al.</p>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #e8e6df",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
+        <label style={{fontSize:12,fontWeight:500,color:"#666",display:"block",marginBottom:6}}>Anthropic API Anahtarı</label>
+        <div style={{display:"flex",gap:8}}>
+          <input type={show?"text":"password"} value={key} onChange={e=>sk(e.target.value)} placeholder="sk-ant-..." style={{flex:1}}/>
+          <button onClick={()=>setShow(v=>!v)} style={{padding:"9px 14px",fontSize:12,whiteSpace:"nowrap"}}>{show?"Gizle":"Göster"}</button>
+        </div>
+        <p style={{fontSize:11,color:"#aaa",marginTop:6}}>Anahtar yalnızca tarayıcında saklanır.</p>
+      </div>
+      {!res&&<>
+        <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+          <Z file={f1} setter={setF1} label="R105 — Belge Durum" id="i1"/>
+          <Z file={f4} setter={setF4} label="R409 — Satış İstatistik" id="i4"/>
+        </div>
+        <button className="p" onClick={go} disabled={!f1||!f4||!key.trim()||load}>
+          {load?"Analiz ediliyor, lütfen bekleyin...":"Analizi Başlat"}
+        </button>
+        {load&&<p style={{textAlign:"center",fontSize:13,color:"#888",marginTop:12}}>15–60 saniye sürebilir...</p>}
+        {err&&<div style={{marginTop:12,padding:"10px 14px",borderRadius:8,background:"#fcebeb",border:"1px solid #f09595",fontSize:13,color:"#791f1f"}}>{err}</div>}
+      </>}
+      {res&&<>
+        <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+          {[{l:"Belge türü",v:res.ozet?.toplam_belge_turu??"—"},{l:"Toplam transfer",v:(res.ozet?.toplam_transfer_adeti||0).toLocaleString("tr-TR")+" adet"},{l:"Talimat sayısı",v:res.transfer_talimatlari?.reduce((a,g)=>a+(g.transferler?.length||0),0)??"—"}].map((k,i)=>(
+            <div key={i} style={{flex:1,minWidth:120,background:"#f1efe8",borderRadius:8,padding:"12px 14px"}}>
+              <div style={{fontSize:12,color:"#888",marginBottom:4}}>{k.l}</div>
+              <div style={{fontSize:22,fontWeight:600}}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+        {res.ozet?.kritik_uyarilar?.length>0&&(
+          <div style={{background:"#faeeda",border:"1px solid #ef9f27",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#633806",marginBottom:8}}>Kritik Uyarılar</div>
+            {res.ozet.kritik_uyarilar.map((u,i)=><div key={i} style={{fontSize:13,color:"#854f0b",marginBottom:4}}>• {u}</div>)}
+          </div>
+        )}
+        <div style={{marginBottom:16}}>{res.transfer_talimatlari?.map((g,i)=><Kart key={i} g={g}/>)}</div>
+        <button onClick={reset}>Yeni Analiz</button>
+      </>}
+      <p style={{fontSize:11,color:"#ccc",textAlign:"center",marginTop:40}}>TOBB — GEBOS-2 Transfer Analiz Aracı</p>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
